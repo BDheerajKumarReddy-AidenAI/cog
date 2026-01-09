@@ -1,0 +1,51 @@
+.chart-renderer {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.chart-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--background-dark);
+  margin: 0 0 16px 0;
+  padding: 0;
+}
+
+.chart-container {
+  background: white;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.chart-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.chart-action-btn {
+  padding: 8px 16px;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background-color 0.2s;
+}
+
+.chart-action-btn:hover {
+  background-color: var(--primary-hover);
+}
+
+.chart-action-btn.secondary {
+  background-color: transparent;
+  color: var(--primary-color);
+  border: 1px solid var(--primary-color);
+}
+
+.chart-action-btn.secondary:hover {
+  background-color: var(--primary-color);
+  color: white;
+}
