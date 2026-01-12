@@ -2,7 +2,6 @@ from typing import TypedDict, Annotated, Sequence
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph, END
-from langgraph.prebuilt import create_react_agent
 from app.core.config import settings
 from app.models.analytics import DATABASE_SCHEMA
 from app.tools.sql_tools import SQL_TOOLS
@@ -10,7 +9,7 @@ from app.tools.chart_tools import CHART_TOOLS
 from app.tools.ppt_tools import PPT_TOOLS
 import operator
 import json
-
+from langchain.agents import create_agent
 
 class AgentState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], operator.add]
@@ -74,17 +73,17 @@ Always be accurate with data. If you're unsure, query the database to get precis
 def create_analytics_agent():
     """Create the LangGraph analytics agent with all tools."""
     llm = ChatOpenAI(
-        model="gpt-4-turbo-preview",
+        model="gpt-4o-mini",
         temperature=0.7,
         api_key=settings.openai_api_key,
     )
 
     all_tools = SQL_TOOLS + CHART_TOOLS + PPT_TOOLS
 
-    agent = create_react_agent(
+    agent = create_agent(
         llm,
         all_tools,
-        state_modifier=SYSTEM_PROMPT,
+        system_prompt=SYSTEM_PROMPT,
     )
 
     return agent
