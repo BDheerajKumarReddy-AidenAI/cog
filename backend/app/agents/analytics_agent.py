@@ -141,6 +141,43 @@ def parse_agent_response(response: str) -> dict:
     return result
 
 
+def apply_presentation_update(presentation: dict, update: dict) -> dict:
+    """Apply a presentation update event to a presentation config."""
+    if not presentation or not update:
+        return presentation
+
+    if presentation.get("presentationId") != update.get("presentationId"):
+        return presentation
+
+    if update.get("action") != "add_chart":
+        return presentation
+
+    slide_id = update.get("slideId")
+    chart_config = update.get("chartConfig")
+
+    if isinstance(chart_config, str):
+        try:
+            chart_config = json.loads(chart_config)
+        except json.JSONDecodeError:
+            chart_config = {"raw": chart_config}
+
+    updated_slides = []
+    for slide in presentation.get("slides", []):
+        if slide.get("id") == slide_id:
+            updated_slides.append({
+                **slide,
+                "contentType": "chart",
+                "chartConfig": chart_config,
+            })
+        else:
+            updated_slides.append(slide)
+
+    return {
+        **presentation,
+        "slides": updated_slides,
+    }
+
+
 class AnalyticsAgentRunner:
     """Runner class to manage agent conversations."""
 
@@ -190,6 +227,7 @@ class AnalyticsAgentRunner:
         # Track presentations and charts created via tools
         collected_presentations = []
         collected_charts = []
+        collected_presentation_updates = []
 
         # Stream events from the agent
         async for event in self.agent.astream_events(state, version="v2"):
@@ -235,6 +273,12 @@ class AnalyticsAgentRunner:
                                     "type": "presentation",
                                     "presentation": output_data,
                                 }
+                            elif output_type == "presentation_update":
+                                collected_presentation_updates.append(output_data)
+                                yield {
+                                    "type": "presentation_update",
+                                    "presentationUpdate": output_data,
+                                }
                             # Capture charts from chart tools
                             elif output_type == "chart":
                                 collected_charts.append(output_data)
@@ -266,6 +310,15 @@ class AnalyticsAgentRunner:
                             # Merge collected presentations/charts with parsed ones
                             all_presentations = collected_presentations + parsed["presentations"]
                             all_charts = collected_charts + parsed["charts"]
+
+                            if collected_presentation_updates and all_presentations:
+                                updated_presentations = []
+                                for pres in all_presentations:
+                                    updated_pres = pres
+                                    for update in collected_presentation_updates:
+                                        updated_pres = apply_presentation_update(updated_pres, update)
+                                    updated_presentations.append(updated_pres)
+                                all_presentations = updated_presentations
 
                             final_sent = True
                             yield {

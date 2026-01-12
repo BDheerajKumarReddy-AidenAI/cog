@@ -64,6 +64,34 @@ export function useChat() {
               }
               break;
 
+            case 'presentation_update':
+              if (event.presentationUpdate) {
+                setCurrentPresentation((prev) => {
+                  if (!prev || prev.presentationId !== event.presentationUpdate?.presentationId) {
+                    return prev;
+                  }
+
+                  const updatedSlides = prev.slides.map((slide) => {
+                    if (slide.id !== event.presentationUpdate?.slideId) {
+                      return slide;
+                    }
+
+                    return {
+                      ...slide,
+                      contentType: 'chart',
+                      chartConfig: event.presentationUpdate?.chartConfig || slide.chartConfig,
+                      chartImage: event.presentationUpdate?.chartImage || slide.chartImage,
+                    };
+                  });
+
+                  return {
+                    ...prev,
+                    slides: updatedSlides,
+                  };
+                });
+              }
+              break;
+
             case 'final':
               const assistantMessage: Message = {
                 id: uuidv4(),

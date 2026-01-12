@@ -27,15 +27,18 @@ def create_presentation_outline(
 
     formatted_slides = []
     for i, slide in enumerate(slides):
-        print(slide.get("chart_config"))
+        content_type = slide.get("content_type", slide.get("contentType", "text"))
+        chart_config = slide.get("chart_config", slide.get("chartConfig"))
+        content = slide.get("content", "")
+        notes = slide.get("notes", "")
         formatted_slide = {
             "id": f"slide-{i + 1}",
             "order": i + 1,
             "title": slide.get("title", f"Slide {i + 1}"),
-            "contentType": slide.get("content_type", "text"),
-            "content": slide.get("content", ""),
-            "notes": slide.get("notes", ""),
-            "chartConfig": slide.get("chart_config"),
+            "contentType": content_type,
+            "content": content,
+            "notes": notes,
+            "chartConfig": chart_config,
         }
         formatted_slides.append(formatted_slide)
     
@@ -71,6 +74,12 @@ def add_chart_to_presentation(
     Returns:
         JSON string confirming the chart addition.
     """
+    if isinstance(chart_config, str):
+        try:
+            chart_config = json.loads(chart_config)
+        except json.JSONDecodeError:
+            chart_config = {"raw": chart_config}
+
     return json.dumps(
         {
             "type": "presentation_update",

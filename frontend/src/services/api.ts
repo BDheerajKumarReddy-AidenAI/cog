@@ -9,7 +9,7 @@ const api = axios.create({
 });
 
 export interface StreamEvent {
-  type: 'tool_start' | 'tool_end' | 'presentation' | 'final' | 'error';
+  type: 'tool_start' | 'tool_end' | 'presentation' | 'presentation_update' | 'final' | 'error';
   tool?: string;
   input?: Record<string, unknown>;
   conversation_id?: string;
@@ -17,6 +17,13 @@ export interface StreamEvent {
   charts?: ChatResponse['charts'];
   presentations?: ChatResponse['presentations'];
   presentation?: ChatResponse['presentations'][0];
+  presentationUpdate?: {
+    action?: string;
+    presentationId: string;
+    slideId: string;
+    chartConfig?: ChatResponse['charts'][0];
+    chartImage?: string;
+  };
   suggestions?: string[];
   message?: string;
 }
