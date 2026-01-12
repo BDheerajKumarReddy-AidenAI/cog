@@ -2,22 +2,38 @@ from typing import Any
 from langchain_core.tools import tool
 from sqlalchemy import text
 from app.core.database import async_session_maker
-import asyncio
 import json
+import logging
 
-
-def run_async(coro):
-    """Helper to run async code in sync context."""
-    try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-    return loop.run_until_complete(coro)
+logger = logging.getLogger(__name__)
 
 
 async def execute_sql_async(query: str) -> dict[str, Any]:
-    """Execute SQL query and return results."""
+    """
+    Execute a read-only SQL query asynchronously using SQLAlchemy AsyncSession.
+
+    This function:
+    - Opens an async database session
+    - Executes the provided SQL query
+    - Fetches all rows and converts them into a list of dictionaries
+
+    Parameters
+    ----------
+    query : str
+        A SQL SELECT query to execute.
+
+    Returns
+    -------
+    dict[str, Any]
+        A dictionary containing:
+        - success (bool): Whether execution succeeded
+        - data (list[dict]): Query result rows
+        - row_count (int): Number of rows returned
+        - columns (list[str]): Column names (on success)
+        - error (str): Error message (on failure)
+    """
+    logger.info("Executing SQL query")
+
     async with async_session_maker() as session:
         try:
             result = await session.execute(text(query))
@@ -32,81 +48,118 @@ async def execute_sql_async(query: str) -> dict[str, Any]:
                 "row_count": len(data),
                 "columns": list(columns),
             }
+
         except Exception as e:
-            return {"success": False, "error": str(e), "data": [], "row_count": 0}
+            logger.exception("SQL execution failed")
+            return {
+                "success": False,
+                "error": str(e),
+                "data": [],
+                "row_count": 0,
+            }
 
 
 @tool
-def execute_sql_query(query: str) -> str:
+async def execute_sql_query(query: str) -> str:
     """
-    Execute a SQL query against the PostgreSQL analytics database.
-    Use this tool to fetch data for analysis, generate reports, or answer data-related questions.
+    LangChain tool to execute a SELECT SQL query against the analytics database.
 
-    Args:
-        query: A valid SQL SELECT query. Only SELECT queries are allowed for security.
+    Safety rules:
+    - Only SELECT queries are allowed
+    - Any non-SELECT query is rejected
 
-    Returns:
-        JSON string containing query results with columns and data rows.
+    Parameters
+    ----------
+    query : str
+        A SQL SELECT query.
+
+    Returns
+    -------
+    str
+        JSON string containing query results or an error message.
     """
-    query_upper = query.strip().upper()
-    if not query_upper.startswith("SELECT"):
+    logger.info("execute_sql_query tool invoked")
+
+    if not query.strip().upper().startswith("SELECT"):
         return json.dumps(
-            {"success": False, "error": "Only SELECT queries are allowed", "data": []}
+            {
+                "success": False,
+                "error": "Only SELECT queries are allowed",
+                "data": [],
+            }
         )
 
-    result = run_async(execute_sql_async(query))
+    result = await execute_sql_async(query)
     return json.dumps(result, default=str)
 
 
 @tool
-def get_table_info(table_name: str) -> str:
+async def get_table_info(table_name: str) -> str:
     """
-    Get information about a specific table including column names and sample data.
+    LangChain tool to retrieve basic information and sample rows from a table.
 
-    Args:
-        table_name: Name of the table (sales_data, customers, or products)
+    The tool:
+    - Validates the table name against an allowlist
+    - Fetches up to 5 rows from the table
 
-    Returns:
-        JSON string with table structure and sample rows.
+    Parameters
+    ----------
+    table_name : str
+        Name of the table to inspect.
+
+    Returns
+    -------
+    str
+        JSON string containing sample rows or an error message.
     """
     valid_tables = ["sales_data", "customers", "products"]
+
     if table_name not in valid_tables:
         return json.dumps(
-            {"success": False, "error": f"Invalid table. Choose from: {valid_tables}"}
+            {
+                "success": False,
+                "error": f"Invalid table. Choose from: {valid_tables}",
+            }
         )
 
     query = f"SELECT * FROM {table_name} LIMIT 5"
-    result = run_async(execute_sql_async(query))
+    result = await execute_sql_async(query)
     return json.dumps(result, default=str)
 
 
 @tool
-def get_analytics_summary() -> str:
+async def get_analytics_summary() -> str:
     """
-    Get a high-level summary of the analytics database including record counts and date ranges.
+    LangChain tool to generate a high-level analytics summary.
 
-    Returns:
-        JSON string with database summary statistics.
+    This tool runs multiple aggregate queries to provide:
+    - Total sales count
+    - Total customer count
+    - Total product count
+
+    Returns
+    -------
+    str
+        JSON string containing a summary of key analytics metrics.
     """
     queries = {
         "sales_count": "SELECT COUNT(*) as count FROM sales_data",
         "customer_count": "SELECT COUNT(*) as count FROM customers",
         "product_count": "SELECT COUNT(*) as count FROM products",
-        "sales_date_range": "SELECT MIN(date) as min_date, MAX(date) as max_date FROM sales_data",
-        "total_revenue": "SELECT SUM(total_amount) as total FROM sales_data",
-        "regions": "SELECT DISTINCT region FROM sales_data",
-        "segments": "SELECT DISTINCT segment FROM customers",
-        "categories": "SELECT DISTINCT category FROM products",
     }
 
     summary = {}
+
     for key, query in queries.items():
-        result = run_async(execute_sql_async(query))
+        result = await execute_sql_async(query)
         if result["success"] and result["data"]:
-            summary[key] = result["data"][0] if len(result["data"]) == 1 else result["data"]
+            summary[key] = result["data"][0]
 
     return json.dumps({"success": True, "summary": summary}, default=str)
 
-
 # List of all available tools for the agent
-SQL_TOOLS = [execute_sql_query, get_table_info, get_analytics_summary]
+SQL_TOOLS = [
+    execute_sql_query,
+    get_table_info,
+    get_analytics_summary,
+]

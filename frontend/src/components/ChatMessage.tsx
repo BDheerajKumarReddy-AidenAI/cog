@@ -1,4 +1,7 @@
 import React from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkBreaks from 'remark-breaks';
+import remarkGfm from 'remark-gfm';
 import { Message } from '../types';
 import ChartRenderer from './ChartRenderer';
 import './ChatMessage.css';
@@ -20,9 +23,13 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
     <div className={`message-container ${isUser ? 'user' : 'assistant'}`}>
       <div className={`message-bubble ${isUser ? 'user' : 'assistant'}`}>
         <div className="message-content">
-          {message.content.split('\n').map((line, i) => (
-            <p key={i}>{line}</p>
-          ))}
+          {isUser ? (
+            message.content.split('\n').map((line, i) => <p key={i}>{line}</p>)
+          ) : (
+            <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
+              {message.content}
+            </ReactMarkdown>
+          )}
         </div>
 
         {message.charts && message.charts.length > 0 && (

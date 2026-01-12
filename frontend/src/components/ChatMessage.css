@@ -41,6 +41,65 @@
   margin-bottom: 0;
 }
 
+.message-content ul,
+.message-content ol {
+  margin: 0 0 8px 20px;
+  padding: 0;
+}
+
+.message-content li {
+  margin-bottom: 4px;
+}
+
+.message-content pre {
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 12px;
+  border-radius: 8px;
+  overflow-x: auto;
+  font-size: 13px;
+}
+
+.message-content code {
+  background: #f1f5f9;
+  color: #0f172a;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+.message-content pre code {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+}
+
+.message-content blockquote {
+  margin: 0 0 8px 0;
+  padding-left: 12px;
+  border-left: 3px solid var(--border-color);
+  color: var(--secondary-color);
+}
+
+.message-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: 13px;
+}
+
+.message-content th,
+.message-content td {
+  border: 1px solid var(--border-color);
+  padding: 6px 8px;
+  text-align: left;
+}
+
+.message-content th {
+  background: #f1f5f9;
+  font-weight: 600;
+}
+
 .message-time {
   font-size: 11px;
   color: var(--secondary-color);
