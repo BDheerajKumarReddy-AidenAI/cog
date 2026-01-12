@@ -9,7 +9,7 @@ interface ChatWindowProps {
   isLoading: boolean;
   onSendMessage: (message: string) => void;
   onSuggestionClick: (suggestion: string) => void;
-  onAddChartToPresentation?: (chart: ChartConfig, chartImage: string) => void;
+  onAddChartToPresentation?: (chart: ChartConfig, chartImage?: string) => void;
   onClearChat: () => void;
   toolStatus?: ToolStatus;
 }
@@ -19,6 +19,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   isLoading,
   onSendMessage,
   onSuggestionClick,
+  onAddChartToPresentation,
   onClearChat,
   toolStatus,
 }) => {
@@ -66,6 +67,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               key={message.id}
               message={message}
               onSuggestionClick={onSuggestionClick}
+              onAddChartToPresentation={onAddChartToPresentation}
             />
           ))
         )}

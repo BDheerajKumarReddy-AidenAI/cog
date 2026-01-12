@@ -1,8 +1,8 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback } from 'react';
 import { useChat } from './hooks/useChat';
+import { ChartConfig } from './types';
 import ChatWindow from './components/ChatWindow';
 import PresentationSidebar from './components/PresentationSidebar';
-import html2canvas from 'html2canvas';
 import './App.css';
 
 const App: React.FC = () => {
@@ -18,27 +18,8 @@ const App: React.FC = () => {
     setCurrentPresentation,
   } = useChat();
 
-  const chartRefs = useRef<Map<number, HTMLDivElement>>(new Map());
-
-  const handleAddChartToPresentation = useCallback(async (chartIndex: number) => {
-    const lastAssistantMessage = [...messages].reverse().find(m => m.role === 'assistant');
-    if (!lastAssistantMessage?.charts?.[chartIndex]) return;
-
-    const chart = lastAssistantMessage.charts[chartIndex];
-    const chartElement = chartRefs.current.get(chartIndex);
-
-    let chartImage = '';
-    if (chartElement) {
-      try {
-        const canvas = await html2canvas(chartElement, {
-          backgroundColor: '#ffffff',
-          scale: 2,
-        });
-        chartImage = canvas.toDataURL('image/png').split(',')[1];
-      } catch (error) {
-        console.error('Failed to capture chart:', error);
-      }
-    }
+  const handleAddChartToPresentation = useCallback((chart: ChartConfig, chartImage?: string) => {
+    const normalizedImage = chartImage || '';
 
     if (currentPresentation) {
       const newSlide = {
@@ -48,7 +29,7 @@ const App: React.FC = () => {
         contentType: 'chart' as const,
         content: '',
         chartConfig: chart,
-        chartImage,
+        chartImage: normalizedImage,
       };
 
       updatePresentation({
@@ -68,12 +49,12 @@ const App: React.FC = () => {
             contentType: 'chart',
             content: '',
             chartConfig: chart,
-            chartImage,
+            chartImage: normalizedImage,
           },
         ],
       });
     }
-  }, [messages, currentPresentation, updatePresentation, setCurrentPresentation]);
+  }, [currentPresentation, updatePresentation, setCurrentPresentation]);
 
   const handleCloseSidebar = useCallback(() => {
     setCurrentPresentation(null);

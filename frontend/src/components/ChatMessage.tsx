@@ -2,14 +2,14 @@ import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
 import remarkGfm from 'remark-gfm';
-import { Message } from '../types';
+import { Message, ChartConfig } from '../types';
 import ChartRenderer from './ChartRenderer';
 import './ChatMessage.css';
 
 interface ChatMessageProps {
   message: Message;
   onSuggestionClick?: (suggestion: string) => void;
-  onAddChartToPresentation?: (chartIndex: number) => void;
+  onAddChartToPresentation?: (chart: ChartConfig, chartImage?: string) => void;
 }
 
 const ChatMessage: React.FC<ChatMessageProps> = ({
@@ -36,15 +36,10 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
           <div className="message-charts">
             {message.charts.map((chart, index) => (
               <div key={index} className="chart-wrapper">
-                <ChartRenderer config={chart} />
-                {onAddChartToPresentation && (
-                  <button
-                    className="add-to-ppt-btn"
-                    onClick={() => onAddChartToPresentation(index)}
-                  >
-                    Add to Presentation
-                  </button>
-                )}
+                <ChartRenderer
+                  config={chart}
+                  onCapture={onAddChartToPresentation ? (imageData) => onAddChartToPresentation(chart, imageData) : undefined}
+                />
               </div>
             ))}
           </div>
