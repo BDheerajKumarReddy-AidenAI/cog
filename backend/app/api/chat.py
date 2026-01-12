@@ -1,8 +1,10 @@
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Any
 from app.agents.analytics_agent import agent_runner
 import uuid
+import json
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
@@ -39,16 +41,26 @@ async def clear_conversation(conversation_id: str):
     return {"status": "success", "message": "Conversation cleared"}
 
 
-class SuggestionRequest(BaseModel):
-    suggestion: str
-    conversation_id: str
-
-
-@router.post("/suggestion", response_model=ChatResponse)
-async def handle_suggestion(request: SuggestionRequest):
-    """Handle a clicked suggestion as a new message."""
+async def generate_stream(conversation_id: str, message: str):
+    """Generate SSE stream from agent events."""
     try:
-        result = await agent_runner.chat(request.conversation_id, request.suggestion)
-        return ChatResponse(**result)
+        async for event in agent_runner.chat_stream(conversation_id, message):
+            yield f"data: {json.dumps(event)}\n\n"
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+
+
+@router.post("/stream")
+async def chat_stream(request: ChatRequest):
+    """Send a message to the analytics agent and stream the response with tool events."""
+    conversation_id = request.conversation_id or str(uuid.uuid4())
+
+    return StreamingResponse(
+        generate_stream(conversation_id, request.message),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Conversation-Id": conversation_id,
+        },
+    )

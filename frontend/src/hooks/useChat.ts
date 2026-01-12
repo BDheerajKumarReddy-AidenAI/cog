@@ -1,7 +1,13 @@
 import { useState, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Message, ChartConfig, PresentationConfig } from '../types';
-import { chatApi } from '../services/api';
+import { chatApi, StreamEvent } from '../services/api';
+
+export interface ToolStatus {
+  isActive: boolean;
+  currentTool: string | null;
+  toolHistory: string[];
+}
 
 export function useChat() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -9,10 +15,16 @@ export function useChat() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentPresentation, setCurrentPresentation] = useState<PresentationConfig | null>(null);
+  const [toolStatus, setToolStatus] = useState<ToolStatus>({
+    isActive: false,
+    currentTool: null,
+    toolHistory: [],
+  });
 
   const sendMessage = useCallback(async (content: string) => {
     setIsLoading(true);
     setError(null);
+    setToolStatus({ isActive: false, currentTool: null, toolHistory: [] });
 
     const userMessage: Message = {
       id: uuidv4(),
@@ -21,76 +33,81 @@ export function useChat() {
       timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    setMessages((prev: Message[]) => [...prev, userMessage]);
 
     try {
-      const response = await chatApi.sendMessage(content, conversationId || undefined);
+      const newConvId = await chatApi.sendMessageStream(
+        content,
+        conversationId || undefined,
+        (event: StreamEvent) => {
+          switch (event.type) {
+            case 'tool_start':
+              setToolStatus((prev: ToolStatus) => ({
+                isActive: true,
+                currentTool: event.tool || null,
+                toolHistory: [...prev.toolHistory, event.tool || ''],
+              }));
+              break;
 
-      if (!conversationId) {
-        setConversationId(response.conversation_id);
-      }
+            case 'tool_end':
+              setToolStatus((prev: ToolStatus) => ({
+                ...prev,
+                isActive: false,
+                currentTool: null,
+              }));
+              break;
 
-      const assistantMessage: Message = {
-        id: uuidv4(),
-        role: 'assistant',
-        content: response.response,
-        timestamp: new Date(),
-        charts: response.charts,
-        presentations: response.presentations,
-        suggestions: response.suggestions,
-      };
+            case 'presentation':
+              // Immediately show presentation preview when created
+              if (event.presentation) {
+                setCurrentPresentation(event.presentation as PresentationConfig);
+              }
+              break;
 
-      setMessages(prev => [...prev, assistantMessage]);
+            case 'final':
+              const assistantMessage: Message = {
+                id: uuidv4(),
+                role: 'assistant',
+                content: event.response || '',
+                timestamp: new Date(),
+                charts: event.charts,
+                presentations: event.presentations,
+                suggestions: event.suggestions,
+              };
 
-      if (response.presentations && response.presentations.length > 0) {
-        setCurrentPresentation(response.presentations[0]);
+              setMessages((prev: Message[]) => [...prev, assistantMessage]);
+
+              if (event.presentations && event.presentations.length > 0) {
+                setCurrentPresentation(event.presentations[0]);
+              }
+
+              if (event.conversation_id && !conversationId) {
+                setConversationId(event.conversation_id);
+              }
+              break;
+
+            case 'error':
+              setError(event.message || 'An error occurred');
+              break;
+          }
+        }
+      );
+
+      if (!conversationId && newConvId) {
+        setConversationId(newConvId);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setIsLoading(false);
+      setToolStatus({ isActive: false, currentTool: null, toolHistory: [] });
     }
   }, [conversationId]);
 
   const handleSuggestion = useCallback(async (suggestion: string) => {
-    if (!conversationId) return;
-
-    setIsLoading(true);
-    setError(null);
-
-    const userMessage: Message = {
-      id: uuidv4(),
-      role: 'user',
-      content: suggestion,
-      timestamp: new Date(),
-    };
-
-    setMessages(prev => [...prev, userMessage]);
-
-    try {
-      const response = await chatApi.handleSuggestion(suggestion, conversationId);
-
-      const assistantMessage: Message = {
-        id: uuidv4(),
-        role: 'assistant',
-        content: response.response,
-        timestamp: new Date(),
-        charts: response.charts,
-        presentations: response.presentations,
-        suggestions: response.suggestions,
-      };
-
-      setMessages(prev => [...prev, assistantMessage]);
-
-      if (response.presentations && response.presentations.length > 0) {
-        setCurrentPresentation(response.presentations[0]);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [conversationId]);
+    // Use the same streaming endpoint as sendMessage
+    await sendMessage(suggestion);
+  }, [sendMessage]);
 
   const clearChat = useCallback(async () => {
     if (conversationId) {
@@ -135,6 +152,7 @@ export function useChat() {
     isLoading,
     error,
     currentPresentation,
+    toolStatus,
     sendMessage,
     handleSuggestion,
     clearChat,

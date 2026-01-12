@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { Message, ChartConfig } from '../types';
 import ChatMessage from './ChatMessage';
-import ChatInput from './ChatInput';
+import ChatInput, { ToolStatus } from './ChatInput';
 import './ChatWindow.css';
 
 interface ChatWindowProps {
@@ -11,6 +11,7 @@ interface ChatWindowProps {
   onSuggestionClick: (suggestion: string) => void;
   onAddChartToPresentation?: (chart: ChartConfig, chartImage: string) => void;
   onClearChat: () => void;
+  toolStatus?: ToolStatus;
 }
 
 const ChatWindow: React.FC<ChatWindowProps> = ({
@@ -19,6 +20,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   onSendMessage,
   onSuggestionClick,
   onClearChat,
+  toolStatus,
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -81,7 +83,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         <div ref={messagesEndRef} />
       </div>
 
-      <ChatInput onSend={onSendMessage} disabled={isLoading} />
+      <ChatInput onSend={onSendMessage} disabled={isLoading} toolStatus={toolStatus} />
     </div>
   );
 };

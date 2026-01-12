@@ -1,5 +1,5 @@
-from typing import TypedDict, Annotated, Sequence
-from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
+from typing import TypedDict, Annotated, Sequence, AsyncGenerator
+from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage, ToolMessage
 from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph, END
 from app.core.config import settings
@@ -7,6 +7,9 @@ from app.models.analytics import DATABASE_SCHEMA
 from app.tools.sql_tools import SQL_TOOLS
 from app.tools.chart_tools import CHART_TOOLS
 from app.tools.ppt_tools import PPT_TOOLS
+import logging
+
+logger = logging.getLogger(__name__)
 import operator
 import json
 from langchain.agents import create_agent
@@ -173,6 +176,106 @@ class AnalyticsAgentRunner:
         """Clear a conversation history."""
         if conversation_id in self.conversations:
             del self.conversations[conversation_id]
+
+    async def chat_stream(self, conversation_id: str, message: str) -> AsyncGenerator[dict, None]:
+        """Process a chat message and stream events including tool calls."""
+        if conversation_id not in self.conversations:
+            self.conversations[conversation_id] = []
+
+        self.conversations[conversation_id].append(HumanMessage(content=message))
+
+        state = {"messages": self.conversations[conversation_id]}
+        final_sent = False
+
+        # Track presentations and charts created via tools
+        collected_presentations = []
+        collected_charts = []
+
+        # Stream events from the agent
+        async for event in self.agent.astream_events(state, version="v2"):
+            event_type = event.get("event")
+
+            if event_type == "on_tool_start":
+                tool_name = event.get("name", "unknown")
+                tool_input = event.get("data", {}).get("input", {})
+                yield {
+                    "type": "tool_start",
+                    "tool": tool_name,
+                    "input": tool_input,
+                }
+
+            elif event_type == "on_tool_end":
+                tool_name = event.get("name", "unknown")
+                # Tool output can be in different locations depending on LangGraph version
+                event_data = event.get("data", {})
+                tool_output = event_data.get("output", "")
+
+                # Handle different output formats
+                if isinstance(tool_output, ToolMessage):
+                    tool_output = tool_output.content
+                elif hasattr(tool_output, "content"):
+                    tool_output = tool_output.content
+                elif isinstance(tool_output, dict) and "content" in tool_output:
+                    tool_output = tool_output["content"]
+
+                logger.info(f"Tool {tool_name} ended. Output type: {type(tool_output).__name__}")
+
+                # Parse tool output to capture presentations and charts
+                if tool_output and isinstance(tool_output, str):
+                    try:
+                        output_data = json.loads(tool_output)
+                        if isinstance(output_data, dict):
+                            output_type = output_data.get("type", "")
+
+                            # Capture and immediately stream presentation
+                            if output_type == "presentation":
+                                print(f"Parsed tool output data of type presentation: {output_data}")
+                                collected_presentations.append(output_data)
+                                yield {
+                                    "type": "presentation",
+                                    "presentation": output_data,
+                                }
+                            # Capture charts from chart tools
+                            elif output_type == "chart":
+                                collected_charts.append(output_data)
+                    except (json.JSONDecodeError, TypeError) as e:
+                        logger.warning(f"Failed to parse tool output: {e}")
+
+                yield {
+                    "type": "tool_end",
+                    "tool": tool_name,
+                }
+
+            elif event_type == "on_chain_end" and not final_sent:
+                # Check if this is the final output from the root chain
+                output = event.get("data", {}).get("output", {})
+
+                # Only process the final output from the agent (not intermediate chains)
+                if isinstance(output, dict) and "messages" in output:
+                    messages = output["messages"]
+                    if messages:
+                        final_message = messages[-1]
+                        # Check it's an AI message with actual content (not a tool call)
+                        if (hasattr(final_message, "content")
+                            and final_message.content
+                            and isinstance(final_message, AIMessage)
+                            and not getattr(final_message, "tool_calls", None)):
+                            self.conversations[conversation_id].append(final_message)
+                            parsed = parse_agent_response(final_message.content)
+
+                            # Merge collected presentations/charts with parsed ones
+                            all_presentations = collected_presentations + parsed["presentations"]
+                            all_charts = collected_charts + parsed["charts"]
+
+                            final_sent = True
+                            yield {
+                                "type": "final",
+                                "conversation_id": conversation_id,
+                                "response": parsed["text"],
+                                "charts": all_charts,
+                                "presentations": all_presentations,
+                                "suggestions": parsed["suggestions"],
+                            }
 
 
 agent_runner = AnalyticsAgentRunner()

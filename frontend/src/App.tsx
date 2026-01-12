@@ -10,6 +10,7 @@ const App: React.FC = () => {
     messages,
     isLoading,
     currentPresentation,
+    toolStatus,
     sendMessage,
     handleSuggestion,
     clearChat,
@@ -88,6 +89,7 @@ const App: React.FC = () => {
           onSuggestionClick={handleSuggestion}
           onAddChartToPresentation={handleAddChartToPresentation}
           onClearChat={clearChat}
+          toolStatus={toolStatus}
         />
       </div>
 

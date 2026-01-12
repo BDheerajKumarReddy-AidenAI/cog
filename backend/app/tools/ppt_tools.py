@@ -27,6 +27,7 @@ def create_presentation_outline(
 
     formatted_slides = []
     for i, slide in enumerate(slides):
+        print(slide.get("chart_config"))
         formatted_slide = {
             "id": f"slide-{i + 1}",
             "order": i + 1,
@@ -37,7 +38,8 @@ def create_presentation_outline(
             "chartConfig": slide.get("chart_config"),
         }
         formatted_slides.append(formatted_slide)
-
+    
+    
     config = {
         "type": "presentation",
         "presentationId": presentation_id,

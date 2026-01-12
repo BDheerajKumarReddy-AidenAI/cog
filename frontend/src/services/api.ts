@@ -8,6 +8,19 @@ const api = axios.create({
   },
 });
 
+export interface StreamEvent {
+  type: 'tool_start' | 'tool_end' | 'presentation' | 'final' | 'error';
+  tool?: string;
+  input?: Record<string, unknown>;
+  conversation_id?: string;
+  response?: string;
+  charts?: ChatResponse['charts'];
+  presentations?: ChatResponse['presentations'];
+  presentation?: ChatResponse['presentations'][0];
+  suggestions?: string[];
+  message?: string;
+}
+
 export const chatApi = {
   sendMessage: async (message: string, conversationId?: string): Promise<ChatResponse> => {
     const response = await api.post<ChatResponse>('/chat/', {
@@ -17,12 +30,57 @@ export const chatApi = {
     return response.data;
   },
 
-  handleSuggestion: async (suggestion: string, conversationId: string): Promise<ChatResponse> => {
-    const response = await api.post<ChatResponse>('/chat/suggestion', {
-      suggestion,
-      conversation_id: conversationId,
+  sendMessageStream: async (
+    message: string,
+    conversationId: string | undefined,
+    onEvent: (event: StreamEvent) => void
+  ): Promise<string> => {
+    const response = await fetch('/api/chat/stream', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        message,
+        conversation_id: conversationId,
+      }),
     });
-    return response.data;
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const convId = response.headers.get('X-Conversation-Id') || conversationId || '';
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+
+    if (!reader) {
+      throw new Error('No response body');
+    }
+
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          try {
+            const event = JSON.parse(line.slice(6)) as StreamEvent;
+            onEvent(event);
+          } catch {
+            // Ignore parse errors
+          }
+        }
+      }
+    }
+
+    return convId;
   },
 
   clearConversation: async (conversationId: string): Promise<void> => {
