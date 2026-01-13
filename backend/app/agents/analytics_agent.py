@@ -141,6 +141,22 @@ def parse_agent_response(response: str) -> dict:
     return result
 
 
+def dedupe_charts(charts: list[dict]) -> list[dict]:
+    """Remove duplicate chart configs while preserving order."""
+    seen = set()
+    unique = []
+    for chart in charts:
+        try:
+            signature = json.dumps(chart, sort_keys=True)
+        except (TypeError, ValueError):
+            signature = str(chart)
+        if signature in seen:
+            continue
+        seen.add(signature)
+        unique.append(chart)
+    return unique
+
+
 def apply_presentation_update(presentation: dict, update: dict) -> dict:
     """Apply a presentation update event to a presentation config."""
     if not presentation or not update:
@@ -309,7 +325,7 @@ class AnalyticsAgentRunner:
 
                             # Merge collected presentations/charts with parsed ones
                             all_presentations = collected_presentations + parsed["presentations"]
-                            all_charts = collected_charts + parsed["charts"]
+                            all_charts = dedupe_charts(collected_charts + parsed["charts"])
 
                             if collected_presentation_updates and all_presentations:
                                 updated_presentations = []
