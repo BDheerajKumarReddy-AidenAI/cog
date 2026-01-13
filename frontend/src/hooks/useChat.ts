@@ -41,6 +41,20 @@ export function useChat() {
         conversationId || undefined,
         (event: StreamEvent) => {
           switch (event.type) {
+            case 'state_update':
+              if (event.tool_output) {
+                setToolStatus((prev: ToolStatus) => ({
+                  isActive: false,
+                  currentTool: null,
+                  toolHistory: [...prev.toolHistory, event.tool_output?.name || ''],
+                }));
+              }
+
+              if (event.presentation) {
+                setCurrentPresentation(event.presentation as PresentationConfig);
+              }
+              break;
+
             case 'tool_start':
               setToolStatus((prev: ToolStatus) => ({
                 isActive: true,
@@ -58,7 +72,6 @@ export function useChat() {
               break;
 
             case 'presentation':
-              // Immediately show presentation preview when created
               if (event.presentation) {
                 setCurrentPresentation(event.presentation as PresentationConfig);
               }
@@ -99,14 +112,13 @@ export function useChat() {
                 content: event.response || '',
                 timestamp: new Date(),
                 charts: event.charts,
-                presentations: event.presentations,
                 suggestions: event.suggestions,
               };
 
               setMessages((prev: Message[]) => [...prev, assistantMessage]);
 
-              if (event.presentations && event.presentations.length > 0) {
-                setCurrentPresentation(event.presentations[0]);
+              if (event.presentation) {
+                setCurrentPresentation(event.presentation);
               }
 
               if (event.conversation_id && !conversationId) {
@@ -151,6 +163,15 @@ export function useChat() {
     setError(null);
   }, [conversationId]);
 
+  const updateCurrentSlide = useCallback(async (slideIndex: number) => {
+    if (!conversationId) return;
+    try {
+      await chatApi.updateSlide(conversationId, slideIndex);
+    } catch {
+      // Ignore slide update errors to keep UI responsive
+    }
+  }, [conversationId]);
+
   const updatePresentation = useCallback((presentation: PresentationConfig) => {
     setCurrentPresentation(presentation);
   }, []);
@@ -187,5 +208,6 @@ export function useChat() {
     updatePresentation,
     addChartToPresentation,
     setCurrentPresentation,
+    updateCurrentSlide,
   };
 }

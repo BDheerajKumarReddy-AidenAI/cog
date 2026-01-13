@@ -149,12 +149,14 @@ interface PresentationSidebarProps {
   presentation: PresentationConfig | null;
   onClose: () => void;
   onUpdatePresentation: (presentation: PresentationConfig) => void;
+  onSelectSlide?: (slideIndex: number) => void;
 }
 
 const PresentationSidebar: React.FC<PresentationSidebarProps> = ({
   presentation,
   onClose,
   onUpdatePresentation,
+  onSelectSlide,
 }) => {
   console.log("hello from PresentationSidebar" , presentation);
   const [selectedSlide, setSelectedSlide] = useState<string | null>(null);
@@ -168,6 +170,12 @@ const PresentationSidebar: React.FC<PresentationSidebarProps> = ({
     const slide = presentation?.slides.find(s => s.id === slideId);
     if (slide) {
       setEditingSlide({ ...slide });
+      if (onSelectSlide && presentation) {
+        const slideIndex = presentation.slides.findIndex(s => s.id === slideId);
+        if (slideIndex >= 0) {
+          onSelectSlide(slideIndex);
+        }
+      }
     }
   };
 

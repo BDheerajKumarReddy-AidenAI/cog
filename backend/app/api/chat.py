@@ -17,8 +17,9 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     conversation_id: str
     response: str
+    current_slide: int
+    presentation: dict[str, Any] | None
     charts: list[dict[str, Any]]
-    presentations: list[dict[str, Any]]
     suggestions: list[str]
 
 
@@ -64,3 +65,13 @@ async def chat_stream(request: ChatRequest):
             "X-Conversation-Id": conversation_id,
         },
     )
+
+
+class SlideUpdateRequest(BaseModel):
+    slide_index: int
+
+
+@router.post("/conversations/{conversation_id}/slide")
+async def update_slide(conversation_id: str, request: SlideUpdateRequest):
+    """Update the current slide in a conversation."""
+    return await agent_runner.update_slide(conversation_id, request.slide_index)

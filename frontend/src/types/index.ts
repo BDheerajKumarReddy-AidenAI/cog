@@ -43,15 +43,15 @@ export interface Message {
   content: string;
   timestamp: Date;
   charts?: ChartConfig[];
-  presentations?: PresentationConfig[];
   suggestions?: string[];
 }
 
 export interface ChatResponse {
   conversation_id: string;
   response: string;
+  current_slide: number;
+  presentation?: PresentationConfig | null;
   charts: ChartConfig[];
-  presentations: PresentationConfig[];
   suggestions: string[];
 }
 

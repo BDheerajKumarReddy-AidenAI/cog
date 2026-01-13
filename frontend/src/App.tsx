@@ -16,6 +16,7 @@ const App: React.FC = () => {
     clearChat,
     updatePresentation,
     setCurrentPresentation,
+    updateCurrentSlide,
   } = useChat();
 
   const handleAddChartToPresentation = useCallback((chart: ChartConfig, chartImage?: string) => {
@@ -79,6 +80,7 @@ const App: React.FC = () => {
           presentation={currentPresentation}
           onClose={handleCloseSidebar}
           onUpdatePresentation={updatePresentation}
+          onSelectSlide={updateCurrentSlide}
         />
       )}
     </div>

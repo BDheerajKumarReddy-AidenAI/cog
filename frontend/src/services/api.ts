@@ -9,14 +9,19 @@ const api = axios.create({
 });
 
 export interface StreamEvent {
-  type: 'tool_start' | 'tool_end' | 'presentation' | 'presentation_update' | 'final' | 'error';
+  type: 'state_update' | 'final' | 'error' | 'tool_start' | 'tool_end' | 'presentation' | 'presentation_update';
   tool?: string;
   input?: Record<string, unknown>;
   conversation_id?: string;
   response?: string;
   charts?: ChatResponse['charts'];
-  presentations?: ChatResponse['presentations'];
-  presentation?: ChatResponse['presentations'][0];
+  presentation?: ChatResponse['presentation'];
+  new_charts?: ChatResponse['charts'];
+  current_slide?: number;
+  tool_output?: {
+    name: string;
+    content: string;
+  };
   presentationUpdate?: {
     action?: string;
     presentationId: string;
@@ -92,6 +97,12 @@ export const chatApi = {
 
   clearConversation: async (conversationId: string): Promise<void> => {
     await api.delete(`/chat/${conversationId}`);
+  },
+
+  updateSlide: async (conversationId: string, slideIndex: number): Promise<void> => {
+    await api.post(`/chat/conversations/${conversationId}/slide`, {
+      slide_index: slideIndex,
+    });
   },
 };
 
