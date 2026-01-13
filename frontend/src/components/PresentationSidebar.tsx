@@ -149,12 +149,14 @@ interface PresentationSidebarProps {
   presentation: PresentationConfig | null;
   onClose: () => void;
   onUpdatePresentation: (presentation: PresentationConfig) => void;
+  onSelectSlide?: (slideIndex: number) => void;
 }
 
 const PresentationSidebar: React.FC<PresentationSidebarProps> = ({
   presentation,
   onClose,
   onUpdatePresentation,
+  onSelectSlide,
 }) => {
   console.log("hello from PresentationSidebar" , presentation);
   const [selectedSlide, setSelectedSlide] = useState<string | null>(null);
@@ -163,11 +165,21 @@ const PresentationSidebar: React.FC<PresentationSidebarProps> = ({
   const [chartsToCapture, setChartsToCapture] = useState<{ slideId: string; config: ChartConfig }[]>([]);
   const chartRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
 
+  // Drag and drop state
+  const [draggedSlideId, setDraggedSlideId] = useState<string | null>(null);
+  const [dragOverSlideId, setDragOverSlideId] = useState<string | null>(null);
+
   const handleSlideClick = (slideId: string) => {
     setSelectedSlide(slideId === selectedSlide ? null : slideId);
     const slide = presentation?.slides.find(s => s.id === slideId);
     if (slide) {
       setEditingSlide({ ...slide });
+      if (onSelectSlide && presentation) {
+        const slideIndex = presentation.slides.findIndex(s => s.id === slideId);
+        if (slideIndex >= 0) {
+          onSelectSlide(slideIndex);
+        }
+      }
     }
   };
 
@@ -222,6 +234,72 @@ const PresentationSidebar: React.FC<PresentationSidebarProps> = ({
       slides: reorderedSlides,
     });
   }, [presentation, onUpdatePresentation]);
+
+  // Drag and drop handlers
+  const handleDragStart = useCallback((e: React.DragEvent<HTMLDivElement>, slideId: string) => {
+    setDraggedSlideId(slideId);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', slideId);
+    // Add a slight delay to allow the drag image to be captured before styling changes
+    setTimeout(() => {
+      const element = e.currentTarget;
+      element.classList.add('dragging');
+    }, 0);
+  }, []);
+
+  const handleDragEnd = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    setDraggedSlideId(null);
+    setDragOverSlideId(null);
+    e.currentTarget.classList.remove('dragging');
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>, slideId: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (draggedSlideId !== slideId) {
+      setDragOverSlideId(slideId);
+    }
+  }, [draggedSlideId]);
+
+  const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    // Only clear if we're leaving the slide item entirely
+    const relatedTarget = e.relatedTarget as HTMLElement;
+    if (!e.currentTarget.contains(relatedTarget)) {
+      setDragOverSlideId(null);
+    }
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>, targetSlideId: string) => {
+    e.preventDefault();
+    if (!presentation || !draggedSlideId || draggedSlideId === targetSlideId) {
+      setDraggedSlideId(null);
+      setDragOverSlideId(null);
+      return;
+    }
+
+    const draggedIndex = presentation.slides.findIndex(s => s.id === draggedSlideId);
+    const targetIndex = presentation.slides.findIndex(s => s.id === targetSlideId);
+
+    if (draggedIndex === -1 || targetIndex === -1) {
+      setDraggedSlideId(null);
+      setDragOverSlideId(null);
+      return;
+    }
+
+    const newSlides = [...presentation.slides];
+    const [draggedSlide] = newSlides.splice(draggedIndex, 1);
+    newSlides.splice(targetIndex, 0, draggedSlide);
+
+    const reorderedSlides = newSlides.map((s, index) => ({ ...s, order: index + 1 }));
+
+    onUpdatePresentation({
+      ...presentation,
+      slides: reorderedSlides,
+    });
+
+    setDraggedSlideId(null);
+    setDragOverSlideId(null);
+  }, [presentation, draggedSlideId, onUpdatePresentation]);
 
   // Capture chart images for slides that have chartConfig but no chartImage
   const captureChartImages = async (): Promise<SlideContent[]> => {
@@ -311,8 +389,14 @@ const PresentationSidebar: React.FC<PresentationSidebarProps> = ({
         {presentation.slides.map((slide) => (
           <div key={slide.id} className="slide-item-wrapper">
             <div
-              className={`slide-item ${selectedSlide === slide.id ? 'selected' : ''}`}
+              className={`slide-item ${selectedSlide === slide.id ? 'selected' : ''} ${draggedSlideId === slide.id ? 'dragging' : ''} ${dragOverSlideId === slide.id ? 'drag-over' : ''}`}
               onClick={() => handleSlideClick(slide.id)}
+              draggable
+              onDragStart={(e) => handleDragStart(e, slide.id)}
+              onDragEnd={handleDragEnd}
+              onDragOver={(e) => handleDragOver(e, slide.id)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, slide.id)}
             >
               <div className="slide-thumbnail">
                 <span className="slide-number">{slide.order}</span>
@@ -464,3 +548,4 @@ const PresentationSidebar: React.FC<PresentationSidebarProps> = ({
 };
 
 export default PresentationSidebar;
+ 
