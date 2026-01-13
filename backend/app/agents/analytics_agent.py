@@ -1,8 +1,10 @@
-from typing import TypedDict, Annotated, Sequence, AsyncGenerator
+from typing import TypedDict, Annotated, Sequence, AsyncGenerator, Optional
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage, ToolMessage
 from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph, END
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
+from app.core.llm_cache import llm_cache
 from app.models.analytics import DATABASE_SCHEMA
 from app.tools.sql_tools import SQL_TOOLS
 from app.tools.chart_tools import CHART_TOOLS
@@ -197,16 +199,27 @@ def apply_presentation_update(presentation: dict, update: dict) -> dict:
 class AnalyticsAgentRunner:
     """Runner class to manage agent conversations."""
 
+    MODEL_NAME = "gpt-4o-mini"
+
     def __init__(self):
         self.agent = create_analytics_agent()
         self.conversations: dict[str, list[BaseMessage]] = {}
 
-    async def chat(self, conversation_id: str, message: str) -> dict:
+    async def chat(self, conversation_id: str, message: str, db: Optional[AsyncSession] = None) -> dict:
         """Process a chat message and return the agent response."""
         if conversation_id not in self.conversations:
             self.conversations[conversation_id] = []
 
         self.conversations[conversation_id].append(HumanMessage(content=message))
+
+        # Check cache first
+        if db:
+            cached_response = await llm_cache.get(db, self.conversations[conversation_id], self.MODEL_NAME)
+            if cached_response:
+                logger.info(f"Cache hit for conversation {conversation_id}")
+                # Add cached AI message to conversation history
+                self.conversations[conversation_id].append(AIMessage(content=cached_response["raw_response"]))
+                return cached_response["parsed"]
 
         state = {"messages": self.conversations[conversation_id]}
 
@@ -217,7 +230,7 @@ class AnalyticsAgentRunner:
 
         parsed = parse_agent_response(ai_message.content)
 
-        return {
+        response = {
             "conversation_id": conversation_id,
             "response": parsed["text"],
             "charts": parsed["charts"],
@@ -225,17 +238,43 @@ class AnalyticsAgentRunner:
             "suggestions": parsed["suggestions"],
         }
 
+        # Cache the response
+        if db:
+            await llm_cache.set(
+                db,
+                self.conversations[conversation_id][:-1],  # Messages before AI response
+                self.MODEL_NAME,
+                {"parsed": response, "raw_response": ai_message.content}
+            )
+
+        return response
+
     def clear_conversation(self, conversation_id: str):
         """Clear a conversation history."""
         if conversation_id in self.conversations:
             del self.conversations[conversation_id]
 
-    async def chat_stream(self, conversation_id: str, message: str) -> AsyncGenerator[dict, None]:
+    async def chat_stream(self, conversation_id: str, message: str, db: Optional[AsyncSession] = None) -> AsyncGenerator[dict, None]:
         """Process a chat message and stream events including tool calls."""
         if conversation_id not in self.conversations:
             self.conversations[conversation_id] = []
 
         self.conversations[conversation_id].append(HumanMessage(content=message))
+
+        # Check cache first
+        if db:
+            cached_response = await llm_cache.get(db, self.conversations[conversation_id], self.MODEL_NAME)
+            if cached_response:
+                print(f"Cache hit for conversation {conversation_id}")
+                # Add cached AI message to conversation history
+                self.conversations[conversation_id].append(AIMessage(content=cached_response["raw_response"]))
+                # Yield cached response as final
+                yield {
+                    "type": "final",
+                    **cached_response["parsed"],
+                    "cached": True,
+                }
+                return
 
         state = {"messages": self.conversations[conversation_id]}
         final_sent = False
@@ -337,7 +376,7 @@ class AnalyticsAgentRunner:
                                 all_presentations = updated_presentations
 
                             final_sent = True
-                            yield {
+                            response = {
                                 "type": "final",
                                 "conversation_id": conversation_id,
                                 "response": parsed["text"],
@@ -345,6 +384,17 @@ class AnalyticsAgentRunner:
                                 "presentations": all_presentations,
                                 "suggestions": parsed["suggestions"],
                             }
+
+                            # Cache the response
+                            if db:
+                                await llm_cache.set(
+                                    db,
+                                    self.conversations[conversation_id][:-1],  # Messages before AI response
+                                    self.MODEL_NAME,
+                                    {"parsed": response, "raw_response": final_message.content}
+                                )
+
+                            yield response
 
 
 agent_runner = AnalyticsAgentRunner()

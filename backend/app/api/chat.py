@@ -1,8 +1,10 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Any
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.agents.analytics_agent import agent_runner
+from app.core.database import get_db
 import uuid
 import json
 
@@ -23,12 +25,12 @@ class ChatResponse(BaseModel):
 
 
 @router.post("/", response_model=ChatResponse)
-async def chat(request: ChatRequest):
+async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)):
     """Send a message to the analytics agent and get a response."""
     conversation_id = request.conversation_id or str(uuid.uuid4())
 
     try:
-        result = await agent_runner.chat(conversation_id, request.message)
+        result = await agent_runner.chat(conversation_id, request.message, db)
         return ChatResponse(**result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -41,22 +43,22 @@ async def clear_conversation(conversation_id: str):
     return {"status": "success", "message": "Conversation cleared"}
 
 
-async def generate_stream(conversation_id: str, message: str):
+async def generate_stream(conversation_id: str, message: str, db: AsyncSession):
     """Generate SSE stream from agent events."""
     try:
-        async for event in agent_runner.chat_stream(conversation_id, message):
+        async for event in agent_runner.chat_stream(conversation_id, message, db):
             yield f"data: {json.dumps(event)}\n\n"
     except Exception as e:
         yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
 
 
 @router.post("/stream")
-async def chat_stream(request: ChatRequest):
+async def chat_stream(request: ChatRequest, db: AsyncSession = Depends(get_db)):
     """Send a message to the analytics agent and stream the response with tool events."""
     conversation_id = request.conversation_id or str(uuid.uuid4())
 
     return StreamingResponse(
-        generate_stream(conversation_id, request.message),
+        generate_stream(conversation_id, request.message, db),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
