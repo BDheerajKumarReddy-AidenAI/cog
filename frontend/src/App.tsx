@@ -1,8 +1,9 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useChat } from './hooks/useChat';
 import { ChartConfig } from './types';
 import ChatWindow from './components/ChatWindow';
 import PresentationSidebar from './components/PresentationSidebar';
+import Sidebar from './components/Sidebar';
 import './App.css';
 
 const App: React.FC = () => {
@@ -60,8 +61,11 @@ const App: React.FC = () => {
     setCurrentPresentation(null);
   }, [setCurrentPresentation]);
 
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
   return (
-    <div className="app-container">
+    <div className={`app-container ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+      <Sidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(s => !s)} />
       <div className={`main-content ${currentPresentation ? 'with-sidebar' : ''}`}>
         <ChatWindow
           messages={messages}

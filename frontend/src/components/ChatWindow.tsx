@@ -36,9 +36,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           <h2>Analytics Assistant</h2>
           <span className="status-indicator">Online</span>
         </div>
-        <button className="clear-chat-btn" onClick={onClearChat}>
-          Clear Chat
-        </button>
       </div>
 
       <div className="messages-container">
@@ -85,7 +82,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         <div ref={messagesEndRef} />
       </div>
 
-      <ChatInput onSend={onSendMessage} disabled={isLoading} toolStatus={toolStatus} />
+      <ChatInput onSend={onSendMessage} disabled={isLoading} toolStatus={toolStatus} onClearChat={onClearChat} />
     </div>
   );
 };

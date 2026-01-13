@@ -1,0 +1,61 @@
+.app-sidebar {
+  --sidebar-width: 260px;
+  --sidebar-collapsed-width: 72px;
+  width: var(--sidebar-width);
+  min-width: var(--sidebar-width);
+  height: 100vh;
+  background: linear-gradient(180deg, rgba(255,255,255,0.6), rgba(250,255,240,0.4));
+  backdrop-filter: blur(8px) saturate(120%);
+  box-shadow: 2px 0 24px rgba(7, 22, 30, 0.06);
+  display: flex;
+  flex-direction: column;
+  transition: width 220ms ease, min-width 220ms ease;
+  padding: 14px 12px;
+  gap: 8px;
+  z-index: 20;
+}
+
+.app-sidebar.collapsed {
+  width: var(--sidebar-collapsed-width);
+  min-width: var(--sidebar-collapsed-width);
+}
+
+.sidebar-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.brand {
+  font-weight: 700;
+  color: #03444d;
+  font-size: 18px;
+}
+
+.collapse-btn {
+  border: none;
+  background: rgba(0,0,0,0.06);
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidebar-nav { flex: 1; margin-top: 18px; }
+.sidebar-nav ul { list-style: none; padding: 0; margin: 0; display:flex; flex-direction:column; gap: 6px }
+.sidebar-item { display:flex; align-items:center; gap: 12px; padding: 10px 8px; border-radius: 10px; cursor: pointer; color: #073642; background: transparent; transition: background 180ms ease, transform 180ms ease; }
+.sidebar-item:hover { background: rgba(3, 68, 77, 0.06); transform: translateX(4px); }
+.sidebar-item .icon { width: 36px; height: 36px; display:inline-flex; align-items:center; justify-content:center; border-radius:8px; background: linear-gradient(135deg, rgba(0,212,170,0.12), rgba(199,244,100,0.12)); }
+.sidebar-item .icon svg { width: 20px; height: 20px; color: #08676b; }
+.sidebar-item .label { font-weight: 600; font-size: 14px; color: #06323a; }
+
+.app-sidebar.collapsed .label { display: none; }
+.app-sidebar.collapsed .brand { display: none; }
+.app-sidebar.collapsed .collapse-btn { transform: rotate(180deg); }
+
+.sidebar-footer { padding: 8px; text-align: center; }
+.muted { color: #6b7280; font-size: 12px; }

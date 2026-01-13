@@ -5,26 +5,70 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  background-color: #f5f7fa;
-  color: #333;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background-color: #FAFBFC;
+  color: #2D3748;
   line-height: 1.6;
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 :root {
-  --primary-color: #4f46e5;
-  --primary-hover: #4338ca;
-  --secondary-color: #64748b;
+  /* Primary teal color scheme */
+  --primary-color: #00D4AA;
+  --primary-hover: #00BF9A;
+  --primary-light: rgba(0, 212, 170, 0.1);
+  --primary-shadow: rgba(0, 212, 170, 0.2);
+  --primary-shadow-hover: rgba(0, 212, 170, 0.3);
+
+  /* Text colors */
+  --text-primary: #2D3748;
+  --text-secondary: #718096;
+  --text-light: #A0AEC0;
+
+  /* Background colors */
   --background-light: #ffffff;
-  --background-dark: #1e293b;
-  --border-color: #e2e8f0;
+  --background-gray: #F8F9FA;
+  --background-off-white: #FAFBFC;
+  --background-card: #F7FAFC;
+
+  /* UI colors */
+  --border-color: #E2E8F0;
+  --border-light: rgba(0, 0, 0, 0.06);
   --success-color: #10b981;
   --warning-color: #f59e0b;
   --error-color: #ef4444;
-  --chat-bg: #f1f5f9;
-  --user-message-bg: #4f46e5;
-  --assistant-message-bg: #ffffff;
+
+  /* Chat specific */
+  --chat-bg: #FAFBFC;
+  --user-message-bg: #F7FAFC;
+  --assistant-message-bg: #00D4AA;
+
+  /* Layout */
   --sidebar-width: 400px;
+
+  /* Spacing system (8px grid) */
+  --spacing-xs: 8px;
+  --spacing-sm: 16px;
+  --spacing-md: 24px;
+  --spacing-lg: 32px;
+  --spacing-xl: 40px;
+  --spacing-2xl: 48px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.1);
+  --shadow-teal: 0 2px 8px var(--primary-shadow);
+  --shadow-teal-hover: 0 4px 12px var(--primary-shadow-hover);
+
+  /* Border radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-pill: 24px;
+  --radius-circle: 50%;
 }
 
 .app-container {
@@ -50,14 +94,73 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: var(--background-gray);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
+  background: var(--border-color);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #a1a1a1;
+  background: var(--primary-color);
+}
+
+/* Typography */
+h1 {
+  font-size: 36px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+
+h2 {
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+
+h3 {
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--text-primary);
+}
+
+/* Button base styles */
+button {
+  font-family: inherit;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+/* Input base styles */
+input,
+textarea,
+select {
+  font-family: inherit;
+  transition: border 0.2s ease, box-shadow 0.2s ease;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+/* Accessibility */
+*:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
 }
